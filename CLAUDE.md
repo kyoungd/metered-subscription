@@ -33,4 +33,4 @@ Rules of engagement (for your coding AI)
 *When uncertain → Ask, don't assume*
 
 ## technology
-Next.js + javascript + tailwind.css + shadcn/ui + clerk.dev + Prisma + Postgresql + Stripe Payments + Redis
+Next.js + javascript + tailwind.css + shadcn/ui + clerk.dev + Prisma + Postgresql + Stripe Payments + Redis + node 22.13.1 + Axiom
