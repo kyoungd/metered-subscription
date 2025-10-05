@@ -5,6 +5,10 @@
 > Language: **JavaScript only (ES modules + JSDoc)** — no TypeScript source.
 > Testing: **Vitest** (checkJS typechecking via `typescript --noEmit`).
 
+
+
+
+
 ## PART A — Files & Hard Requirements
 
 ### Allowed paths (create/modify only these)
@@ -123,6 +127,10 @@
 
 ---
 
+
+
+
+
 ## PART B — Tooling & Scripts
 
 ### Makefile (required targets)
@@ -199,6 +207,12 @@ make run          # next dev -p ${MTR_HTTP_PORT:-3000}
 * `.env.example`: show `MTR_*` vars; no secrets.
 
 ---
+
+
+
+
+
+
 
 ## PART C — Tests to Write (`/tests/tests_scaffold`)
 

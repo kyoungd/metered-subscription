@@ -1,0 +1,58 @@
+{
+  "compilerOptions": {
+    // Type checking for JavaScript files via JSDoc
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+
+    // Module resolution
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+
+    // Strictness
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    // Path aliases
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+
+    // Next.js specific
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "incremental": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "lib/**/*.js",
+    "app/**/*.js",
+    "tests/**/*.js",
+    "*.js",
+    "*.mjs",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "out",
+    "build",
+    "dist",
+    "coverage"
+  ]
+}

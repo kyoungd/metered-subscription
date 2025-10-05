@@ -13,38 +13,81 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  clerkId   String   @unique
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Organization {
+  id               String   @id @default(cuid())
+  clerkOrgId       String   @unique
+  name             String
+  stripeCustomerId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  subscriptions Subscription[]
-  usageRecords  UsageRecord[]
+  users            User[]
+  subscriptions    Subscription[]
+  usageCounters    UsageCounter[]
+  usageRecords     UsageRecord[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  clerkId        String   @unique
+  email          String   @unique
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model Subscription {
-  id                String   @id @default(cuid())
-  userId            String
-  stripeCustomerId  String   @unique
-  stripeSubscriptionId String @unique
-  stripePriceId     String
-  status            String
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  organizationId       String
+  stripeSubscriptionId String   @unique
+  stripePriceId        String
+  planCode             String   // 'starter', 'pro', 'enterprise'
+  status               String   // 'active', 'trialing', 'canceled', 'past_due'
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  canceledAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model UsageCounter {
+  id             String   @id @default(cuid())
+  organizationId String
+  metric         String   // 'api_calls', 'storage_gb', etc.
+  periodStart    DateTime
+  periodEnd      DateTime
+  currentValue   Int      @default(0)
+  limit          Int?     // null = unlimited
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, metric, periodStart])
+  @@index([organizationId])
+  @@index([periodStart, periodEnd])
 }
 
 model UsageRecord {
-  id        String   @id @default(cuid())
-  userId    String
-  metric    String
-  quantity  Int
-  timestamp DateTime @default(now())
+  id             String   @id @default(cuid())
+  organizationId String
+  metric         String
+  quantity       Int
+  metadata       Json?    // flexible metadata for events
+  timestamp      DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([metric])
+  @@index([timestamp])
 }

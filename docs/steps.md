@@ -3,9 +3,23 @@
 
 ### UC-01 · Sign-Up → Trial Activation
 
-* **Goal:** create org + trial entitlement; set initial quota.
+* **Goal:** create org + owner + trial entitlement; set initial quota.
 * **Trigger/Route:** `POST /api/signup`
 * **Steps:** validate `{orgName,email}` → mint `orgId` (stub for now) → Stripe **upsert customer** (by `orgId`) → **create subscription** on `starter` price with trial (or return **Checkout Session URL**); seed `UsageCounter(0)`.
+* **User fills signup process**
+  User signs up at Clerk → Redirect to /onboarding
+    ↓
+  /onboarding page shows form: "What's your organization name?"
+    ↓
+  User submits { orgName }
+    ↓
+  POST /api/signup { orgName }
+    - auth() gets userId from Clerk
+    - Get email from Clerk API
+    - Create Organization + User record
+    - Setup Stripe billing
+    ↓
+  Redirect to /onboarding
 * **Acceptance:** 200 + `wrapSuccess({ orgId, planCode:'starter', trialEndsAt, checkoutUrl? })`; S0.5: dry-run.
 
 ---
