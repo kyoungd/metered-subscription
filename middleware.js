@@ -8,6 +8,9 @@ const isPublicRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware(async (auth, request) => {
+  // Note: Incoming API request logging moved to individual route handlers
+  // Middleware runs in Edge Runtime and can't access Prisma/database
+
   if (!isPublicRoute(request)) {
     await auth.protect()
   }

@@ -75,3 +75,18 @@ model UsageRecord {
   @@index([metric])
   @@index([timestamp])
 }
+
+model DebugLog {
+  id        String   @id @default(cuid())
+  source    String   // 'external' for all external interactions
+  category  String   // 'webhook', 'rest_in', 'rest_out'
+  provider  String?  // 'clerk', 'stripe', etc.
+  type      String?  // event type (for webhooks) or request method (for REST)
+  path      String?  // URL path or API endpoint
+  payload   Json     // full request/response payload
+  timestamp DateTime @default(now())
+
+  @@index([category])
+  @@index([provider])
+  @@index([timestamp])
+}

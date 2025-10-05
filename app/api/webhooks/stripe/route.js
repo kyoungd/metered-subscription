@@ -4,11 +4,16 @@ import { stripe } from '@/lib/stripe'
 import { db } from '@/lib/scaffold/db.js'
 import { getEnv } from '@/lib/scaffold/config.js'
 import { createContainer } from '@/lib/scaffold/di.js'
+import { writeDebugLog } from '@/lib/scaffold/debug-log.js'
+import { logIncomingRequest } from '@/lib/scaffold/log-request.js'
 
 export async function POST(req) {
   let logger
 
   try {
+    // Log incoming request
+    await logIncomingRequest(req)
+
     // Setup logging infrastructure
     const env = getEnv()
     const container = createContainer(env)
@@ -40,12 +45,23 @@ export async function POST(req) {
         apiVersion: event.api_version,
       })
 
-      // Log full event data for debugging integrations
-      logger.debug({
-        message: 'Stripe webhook full payload',
+      // Log full event data for debugging (changed to info for external data logging)
+      logger.info({
+        message: 'Stripe webhook received - full payload',
+        source: 'external',
+        provider: 'stripe',
         type: event.type,
         eventId: event.id,
-        eventData: JSON.stringify(event.data.object, null, 2),
+        payload: event.data.object,
+      })
+
+      // Write to debug log table (non-blocking)
+      writeDebugLog({
+        category: 'webhook',
+        provider: 'stripe',
+        type: event.type,
+        path: '/api/webhooks/stripe',
+        payload: event.data.object,
       })
     } catch (err) {
       logger.error({
