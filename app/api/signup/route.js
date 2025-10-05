@@ -84,7 +84,10 @@ export async function POST(request) {
       orgName,
     })
 
-    // Step 3: Call signup handler
+    // Step 3: Get Clerk client instance
+    const clerk = await clerkClient()
+
+    // Step 4: Call signup handler
     const result = await handleSignup({
       userId,
       orgName,
@@ -92,7 +95,7 @@ export async function POST(request) {
       call_state: ctx.call_state,
       clients: ctx.clients,
       env,
-      clerkClient,
+      clerkClient: clerk,
       db,
     })
 

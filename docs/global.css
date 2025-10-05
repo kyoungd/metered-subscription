@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --color-primary: #0A327F;
+  --color-primary-hover: #052B6C;
+  --color-accent: #314E8D;
+  --color-bg-light: #F1F6FB;
+  --color-text: #1A1A1A;
+}
+
+body {
+  color: var(--color-text);
+  font-family: "Inter", Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+h1, h2, h3 {
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-lg px-6 py-4 font-semibold text-white bg-primary shadow-sm hover:bg-primary-hover transition-colors duration-200 border-0 cursor-pointer no-underline;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-lg px-6 py-4 font-semibold text-primary bg-white border-2 border-primary hover:bg-primary hover:text-white transition-all duration-200 no-underline;
+}
+
+.bg-light {
+  background: var(--color-bg-light);
+}
+
+.text-accent {
+  color: var(--color-accent);
+}
+
+.demo-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.demo-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+}

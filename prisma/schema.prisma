@@ -13,34 +13,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Organization {
+model User {
   id               String   @id @default(cuid())
-  clerkOrgId       String   @unique
-  name             String
-  stripeCustomerId String?  @unique
+  clerkId          String   @unique
+  email            String   @unique
+  stripeCustomerId String?  @unique  // Owner/Admin's Stripe customer ID
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  users            User[]
-  subscriptions    Subscription[]
-  usageCounters    UsageCounter[]
-  usageRecords     UsageRecord[]
-}
-
-model User {
-  id             String   @id @default(cuid())
-  clerkId        String   @unique
-  email          String   @unique
-  organizationId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscriptions    Subscription[]  // Subscriptions owned by this user
 }
 
 model Subscription {
   id                   String   @id @default(cuid())
-  organizationId       String
+  userId               String   // Owner who pays for this subscription
+  clerkOrgId           String   // Clerk organization this subscription is for
   stripeSubscriptionId String   @unique
   stripePriceId        String
   planCode             String   // 'starter', 'pro', 'enterprise'
@@ -53,15 +40,16 @@ model Subscription {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([organizationId])
+  @@index([userId])
+  @@index([clerkOrgId])
   @@index([status])
 }
 
 model UsageCounter {
   id             String   @id @default(cuid())
-  organizationId String
+  clerkOrgId     String   // Clerk organization ID (workspace)
   metric         String   // 'api_calls', 'storage_gb', etc.
   periodStart    DateTime
   periodEnd      DateTime
@@ -70,24 +58,20 @@ model UsageCounter {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, metric, periodStart])
-  @@index([organizationId])
+  @@unique([clerkOrgId, metric, periodStart])
+  @@index([clerkOrgId])
   @@index([periodStart, periodEnd])
 }
 
 model UsageRecord {
-  id             String   @id @default(cuid())
-  organizationId String
-  metric         String
-  quantity       Int
-  metadata       Json?    // flexible metadata for events
-  timestamp      DateTime @default(now())
+  id         String   @id @default(cuid())
+  clerkOrgId String   // Clerk organization ID (workspace)
+  metric     String
+  quantity   Int
+  metadata   Json?    // flexible metadata for events
+  timestamp  DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
+  @@index([clerkOrgId])
   @@index([metric])
   @@index([timestamp])
 }
