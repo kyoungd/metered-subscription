@@ -1,184 +1,128 @@
-
-# Use Cases — Metered Subscriptions Platform (Lean v1 · JS · Stripe-only)
-
-### UC-01 · Sign-Up → Trial Activation
-
-* **Goal:** create org + owner + trial entitlement; set initial quota.
-* **Trigger/Route:** `POST /api/signup`
-* **Steps:** validate `{orgName,email}` → mint `orgId` (stub for now) → Stripe **upsert customer** (by `orgId`) → **create subscription** on `starter` price with trial (or return **Checkout Session URL**); seed `UsageCounter(0)`.
-* **User fills signup process**
-  User signs up at Clerk → Redirect to /onboarding
-    ↓
-  /onboarding page shows form: "What's your organization name?"
-    ↓
-  User submits { orgName }
-    ↓
-  POST /api/signup { orgName }
-    - auth() gets userId from Clerk
-    - Get email from Clerk API
-    - Create Organization + User record
-    - Setup Stripe billing
-    ↓
-  Redirect to /onboarding
-* **Acceptance:** 200 + `wrapSuccess({ orgId, planCode:'starter', trialEndsAt, checkoutUrl? })`; S0.5: dry-run.
+Understood. Here are the **bigger stories**, each decomposed into **small stories**, with one **function = one REST endpoint (or background job)**. Each item has a one-line goal and acceptance.
 
 ---
 
-### UC-02 · Get My Entitlements (read-only)
+## 1) Sign-Up → Trial (Big Story)
 
-* **Goal:** show current plan & counters.
-* **Trigger/Route:** `GET /api/me/entitlements`
-* **Steps:** `requireAuth()` → read `Entitlement` + `UsageCounter` (DB) → return `{ planCode, includedUnits, used, remaining, periodKey }`.
-* **Acceptance:** 200; no external calls; stable envelope.
+1.1) **Create Org**
+**POST** `/api/orgs.create` → creates `{orgId,name,ownerUserId}`
+**Acceptance:** 200 `{orgId}`
 
----
+1.2) **Ensure Stripe Customer**
+**POST** `/api/stripe/customer.ensure` `{orgId,email}` → returns/creates `customerId`
+**Acceptance:** 200 `{stripeCustomerId}` (idempotent)
 
-### UC-03 · Record Usage (single event, idempotent)
+1.3) **Create Trial Subscription**
+**POST** `/api/stripe/subscription.create` `{orgId, priceLookup:'plan_starter_m'}`
+**Acceptance:** 200 `{subscriptionId,status:'trialing',trialEndsAt}`
 
-* **Goal:** ingest one API call.
-* **Trigger/Route:** `POST /api/v1/usage`
-* **Steps:** auth → validate `{ orgId, metric:'api_call', value, occurredAt, request_id }` → `assertIdempotent` → append `UsageEvent` → `INCRBY` Redis → refresh `UsageCounter`.
-* **Acceptance:** duplicate `request_id` returns identical body; 400 on invalid; 200 includes `{ periodKey, used, remaining }`.
+1.4) **Provision in Stigg**
+**POST** `/api/stigg/provision` `{orgId, stripeCustomerId, stripeSubscriptionId, planCode}`
+**Acceptance:** 200 `{provisioned:true}`
 
----
-
-### UC-04 · Real-Time Quota Check
-
-* **Goal:** fast allow/deny.
-* **Trigger/Route:** `POST /api/quota/check`
-* **Steps:** validate `{ orgId, metric:'api_call' }` → `checkQuota(orgId)` (Redis fast path → DB fallback) → allow/deny.
-* **Acceptance:** `200 { allow:true, remaining }` or `402/429 { allow:false, remaining:0 }`; p95 quota ≤50 ms (stubbed timer OK in S0.5).
+1.5) **Seed Usage Counter**
+**POST** `/api/usage/seed` `{orgId, periodKey}`
+**Acceptance:** 200 `{used:0, remaining:included, periodKey}`
 
 ---
 
-### UC-05 · Hard Stop at 0 (standard denial)
+## 2) Trial → Paid Conversion (Big Story)
 
-* **Goal:** consistent error payload/headers when over quota.
-* **Trigger:** invoked by middleware after UC-04 denial.
-* **Steps:** `wrapError(ApiError('RATE_LIMITED','Quota exceeded',429))` + `Retry-After: <start-of-next-period>` + echo `correlationId`.
-* **Acceptance:** envelope present; headers set.
+2.1) **Create SetupIntent**
+**POST** `/api/payments/setup-intent.create` `{orgId}`
+**Acceptance:** 200 `{clientSecret}`
 
----
+2.2) **Attach & Set Default PM**
+**POST** `/api/payments/default-method.set` `{orgId, paymentMethodId}`
+**Acceptance:** 200 `{ok:true}`
 
-### UC-06 · Plan Preview (proration)
+2.3) **Stripe Webhook Intake** *(background trigger)*
+**POST** `/api/webhooks/stripe.receive` raw body
+**Acceptance:** 202 `{queued:true,eventId}` (idempotent on `event.id`)
 
-* **Goal:** preview cost before change.
-* **Trigger/Route:** `POST /api/plans/preview`
-* **Steps:** validate `{ orgId, planCode, proration? }` → **S0.5:** deterministic stub → **Later:** Stripe “upcoming invoice” preview.
-* **Acceptance:** 200 `{ amount, currency, proration, items[] }`; no state writes.
-
----
-
-### UC-07 · Upgrade Now (immediate + proration)
-
-* **Goal:** switch plan right away.
-* **Trigger/Route:** `POST /api/plans/upgrade`
-* **Steps:** validate `{ orgId, newPlanCode }` → Stripe **update subscription** (prorate now) → update `Entitlement` (planCode/includedUnits) → keep counters.
-* **Acceptance:** idempotent; 200 `{ planCode:newPlanCode }`.
+2.4) **Stripe Webhook Processor** *(background job)*
+**POST** `/api/jobs/stripe.process` `{eventId}`
+**Acceptance:** 200 `{converged:true}` (DB mirrors Stripe `active|canceled`)
 
 ---
 
-### UC-08 · Downgrade (schedule EoP)
+## 3) Entitlements (Big Story)
 
-* **Goal:** schedule downgrade at period end.
-* **Trigger/Route:** `POST /api/plans/downgrade`
-* **Steps:** validate → Stripe **schedule** plan change at current period end → set `Entitlement.scheduledChange`.
-* **Acceptance:** 200 `{ effectiveAt, newPlanCode }`; cancel/rewrite safe if re-called.
-
----
-
-### UC-09 · List Invoices
-
-* **Goal:** show invoices & payment status.
-* **Trigger/Route:** `GET /api/invoices?cursor=&limit=`
-* **Steps:** Stripe list by `customer` (mapped from `orgId`) → map to `{ id, amount, currency, status, url, created }`.
-* **Acceptance:** 200; cursor passthrough; S0.5: dry-run.
+3.1) **Get My Entitlements**
+**GET** `/api/me/entitlements.read`
+**Acceptance:** 200 `{planCode,included,used,remaining,periodKey}`
 
 ---
 
-### UC-10 · Attach Payment Method (SetupIntent)
+## 4) Usage & Quota (Big Story)
 
-* **Goal:** store a card.
-* **Trigger/Route:** `POST /api/payments/setup`
-* **Steps:** ensure Stripe customer → create **SetupIntent** → return `{ clientSecret }`.
-* **Acceptance:** 200; secrets not logged (redaction test); S0.5: fake secret.
+4.1) **Real-Time Quota Check**
+**POST** `/api/quota/check` `{orgId, metric:'api_call'}`
+**Acceptance:** 200 `{allow:true,remaining}` or 429 `{allow:false,remaining:0}`
 
----
+4.2) **Record Usage (Idempotent)**
+**POST** `/api/usage/record` `{orgId, metric, value, occurredAt, request_id}`
+**Acceptance:** 200 `{periodKey,used,remaining}`; duplicate `request_id` → identical body
 
-### UC-11 · Create Portal Session
-
-* **Goal:** send user to Stripe Customer Portal.
-* **Trigger/Route:** `POST /api/payments/portal`
-* **Steps:** Stripe **billing portal session** for `customer` → return `{ url }`.
-* **Acceptance:** 200; S0.5: dry-run URL.
+4.3) **Standard Denial Envelope**
+**POST** `/api/quota/deny-envelope.example`
+**Acceptance:** 429 with standard JSON + `Retry-After`
 
 ---
 
-### UC-12 · Webhook Intake (Stripe)
+## 5) Plan Changes (Big Story)
 
-* **Goal:** receive provider events.
-* **Trigger/Route:** `POST /api/webhooks/stripe`
-* **Steps:** accept JSON (no verify in S0.5) → `enqueue({ type:'stripe', id, receivedAt, payload, correlationId })` → `202`.
-* **Acceptance:** 202; captured job object; no processing yet.
+5.1) **Preview Plan Change (Proration)**
+**POST** `/api/plans/preview` `{orgId,newPlanCode}`
+**Acceptance:** 200 `{amount,currency,proration,items[]}`
 
----
+5.2) **Upgrade Now (Immediate)**
+**POST** `/api/plans/upgrade.now` `{orgId,newPlanCode}`
+**Acceptance:** 200 `{planCode:newPlanCode,effective:'immediate'}`
 
-### UC-13 · Webhook Processor (idempotent converge)
-
-* **Goal:** mutate state from events safely.
-* **Trigger:** worker/job run.
-* **Steps:** verify signature (later) → idempotency on `event.id` → handle `checkout.session.completed`, `customer.updated`, `invoice.{paid,finalized}`, `customer.subscription.{created,updated,deleted}` → upsert `Entitlement`, `InvoiceRef`, audit.
-* **Acceptance:** re-processing same event no-ops; state converges ≤5 s.
+5.3) **Downgrade at Period End**
+**POST** `/api/plans/downgrade.schedule` `{orgId,newPlanCode}`
+**Acceptance:** 200 `{effectiveAt, pendingPlanCode:newPlanCode}`
 
 ---
 
-### UC-14 · Admin: Quota Reset (period rollover)
+## 6) Billing Self-Service (Big Story)
 
-* **Goal:** recompute counters at new period.
-* **Trigger/Route:** `POST /api/admin/quotas/reset`
-* **Steps:** for active orgs → compute next `includedUnits` from `Entitlement` → write `UsageCounter(used=0, remaining=included)` → seed Redis.
-* **Acceptance:** 200 `{ updated:n, periodKey }`; S0.5: dry-run OK.
+6.1) **List Invoices**
+**GET** `/api/invoices.list?cursor=&limit=`
+**Acceptance:** 200 `[{id,total,currency,status,url,created}]`
 
----
-
-### UC-15 · Observability Sanity (smoke)
-
-* **Goal:** prove logs/metrics wiring.
-* **Trigger/Route:** `GET /api/diag/smoke`
-* **Steps:** start timer → tiny calc → stop timer → increment counter → return `{ ok:true }`.
-* **Acceptance:** JSON log includes `service,version,request_id,correlation_id,tenant_id`; no PII.
+6.2) **Create Customer Portal Session**
+**POST** `/api/payments/portal.create` `{orgId}`
+**Acceptance:** 200 `{url}`
 
 ---
 
-### UC-16 · Admin: Webhook Replay
+## 7) Period Rollover (Big Story)
 
-* **Goal:** deterministic replay of stuck events.
-* **Trigger/Route:** `POST /api/admin/webhooks/replay` `{ eventIds:[] }`
-* **Steps:** RBAC guard → enqueue each idempotently with new `correlationId`.
-* **Acceptance:** 200 `{ enqueued:n }`; safe to call repeatedly.
-
----
-
-### UC-17 · Token Activation Lifecycle (client plugin)
-
-* **Goal:** secure short-lived tokens, no static keys.
-* **Trigger/Routes:**
-
-  * `POST /api/tokens/activate` `{ activationCode }` → issues short-lived org-scoped access + refresh (domain-bound).
-  * `POST /api/tokens/refresh` → rotate access; fail → re-activation.
-* **Steps:** validate code → mint JWT (scopes: `usage:write entitlements:read`) → store hashed refresh ref; audit.
-* **Acceptance:** activation expires quickly; refresh before expiry; logs redact tokens.
+7.1) **Quota Reset (Admin/Auto)**
+**POST** `/api/admin/quotas.reset` `{periodKey}`
+**Acceptance:** 200 `{updated:n, periodKey}`
 
 ---
 
-## Shared Contract Bits (apply to all UCs)
+## 8) Webhook Operations (Big Story)
 
-* **Headers (auto if missing):** `x-request-id`, `x-correlation-id`, `<tenant header>` from `env.tenantHeader` (e.g., `x-tenant-id`).
-* **Envelope:** `wrapSuccess(data, meta?)` · `wrapError(new ApiError(code, message, status))`.
-* **Per-request context:**
+8.1) **Webhook Replay (Admin)**
+**POST** `/api/admin/webhooks.replay` `{eventIds:[]}`
+**Acceptance:** 200 `{enqueued:n}`
 
-  ```js
-  const { env, logger, call_state, clients } = container.ctx(request.headers);
-  ```
-* **S0.5 testing pointers:** no network; client stubs echo; snapshot envelope shapes; redaction tests; idempotency (`request_id`) returns identical bodies.
+---
 
+## 9) Observability (Big Story)
+
+9.1) **Smoke Diagnostics**
+**GET** `/api/diag/smoke`
+**Acceptance:** 200 `{ok:true}` and emits structured log
+
+---
+
+### Notes (scope guards)
+
+* Each function above is a **separate endpoint or background job**.
+* Bigger stories (1, 2, 4, 5) are broken into **independent, callable units** to align with your AI-coding workflow.
