@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,80 +10,120 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id               String   @id @default(cuid())
-  clerkId          String   @unique
-  email            String   @unique
-  stripeCustomerId String?  @unique  // Owner/Admin's Stripe customer ID
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+model Organization {
+  id          String   @id @default(cuid())
+  clerkOrgId  String   @unique @map("clerk_org_id")
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  subscriptions    Subscription[]  // Subscriptions owned by this user
+  // Relations
+  users       User[]
+  subscriptions Subscription[]
+  usageCounters UsageCounter[]
+  usageRecords UsageRecord[]
+
+  @@map("organizations")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique @map("clerk_id")
+  email     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("users")
 }
 
 model Subscription {
-  id                   String   @id @default(cuid())
-  userId               String   // Owner who pays for this subscription
-  clerkOrgId           String   // Clerk organization this subscription is for
-  stripeSubscriptionId String   @unique
-  stripePriceId        String
-  planCode             String   // 'starter', 'pro', 'enterprise'
-  status               String   // 'active', 'trialing', 'canceled', 'past_due'
-  trialStart           DateTime?
-  trialEnd             DateTime?
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  canceledAt           DateTime?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id              String   @id @default(cuid())
+  clerkOrgId      String   @map("clerk_org_id")
+  stripeCustomerId String  @map("stripe_customer_id")
+  stripeSubscriptionId String @unique @map("stripe_subscription_id")
+  planCode        String   @map("plan_code")
+  stripePriceId   String   @map("stripe_price_id")
+  status          String   // active, trialing, canceled, past_due
+  currentPeriodStart DateTime @map("current_period_start")
+  currentPeriodEnd   DateTime @map("current_period_end")
+  trialEndsAt      DateTime? @map("trial_ends_at")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  usageCounters  UsageCounter[]
+  usageRecords   UsageRecord[]
 
-  @@index([userId])
-  @@index([clerkOrgId])
-  @@index([status])
+  @@map("subscriptions")
 }
 
 model UsageCounter {
-  id             String   @id @default(cuid())
-  clerkOrgId     String   // Clerk organization ID (workspace)
-  metric         String   // 'api_calls', 'storage_gb', etc.
-  periodStart    DateTime
-  periodEnd      DateTime
-  currentValue   Int      @default(0)
-  limit          Int?     // null = unlimited
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  clerkOrgId      String   @map("clerk_org_id")
+  periodKey       String   @map("period_key") // YYYY-MM format
+  periodStart     DateTime @map("period_start")
+  periodEnd       DateTime @map("period_end")
+  metric          String   // 'api_call'
+  included        Int      // quota from plan
+  used            Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@unique([clerkOrgId, metric, periodStart])
-  @@index([clerkOrgId])
-  @@index([periodStart, periodEnd])
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  usageRecords   UsageRecord[]
+
+  @@unique([clerkOrgId, periodKey, metric])
+  @@map("usage_counters")
 }
 
 model UsageRecord {
-  id         String   @id @default(cuid())
-  clerkOrgId String   // Clerk organization ID (workspace)
-  metric     String
-  quantity   Int
-  metadata   Json?    // flexible metadata for events
-  timestamp  DateTime @default(now())
+  id              String   @id @default(cuid())
+  clerkOrgId      String   @map("clerk_org_id")
+  metric          String
+  value           Int
+  occurredAt      DateTime @map("occurred_at")
+  metadata        Json?    // for idempotency: {"request_id": "..."}
+  createdAt       DateTime @default(now())
 
-  @@index([clerkOrgId])
-  @@index([metric])
-  @@index([timestamp])
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  usageCounterId String
+  usageCounter   UsageCounter @relation(fields: [usageCounterId], references: [id])
+
+  @@map("usage_records")
+}
+
+model WebhookQueue {
+  id        String   @id @default(cuid())
+  eventId   String   @unique @map("event_id")
+  eventType String   @map("event_type")
+  processed Boolean  @default(false)
+  payload   Json
+  createdAt DateTime @default(now())
+  processedAt DateTime? @map("processed_at")
+
+  @@map("webhook_queue")
 }
 
 model DebugLog {
   id        String   @id @default(cuid())
-  source    String   // 'external' for all external interactions
-  category  String   // 'webhook', 'rest_in', 'rest_out'
-  provider  String?  // 'clerk', 'stripe', etc.
-  type      String?  // event type (for webhooks) or request method (for REST)
-  path      String?  // URL path or API endpoint
-  payload   Json     // full request/response payload
-  timestamp DateTime @default(now())
+  level     String   // info, warn, error
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
 
-  @@index([category])
-  @@index([provider])
-  @@index([timestamp])
+  @@map("debug_logs")
 }
