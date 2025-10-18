@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+**Installed:**
+- Clerk: `@clerk/nextjs` (`clerkClient`, `auth()` from `/server`)
+- Stripe: `stripe` (see `/lib/stripe.js`)
+- Stigg: `@stigg/node-server-sdk` (`STIGG_SERVER_API_KEY`)
+---

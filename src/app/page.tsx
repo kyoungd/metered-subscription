@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import Link from "next/link";
 
 export default function Home() {
@@ -11,7 +17,8 @@ export default function Home() {
             Metered Subscriptions
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-            SaaS billing platform with real-time usage tracking, quota enforcement, and seamless plan management.
+            SaaS billing platform with real-time usage tracking, quota
+            enforcement, and seamless plan management.
           </p>
           <div className="flex gap-4 justify-center">
             <Button asChild size="lg">
@@ -31,7 +38,8 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Fast quota enforcement with local database tracking for optimal API performance.
+                Fast quota enforcement with local database tracking for optimal
+                API performance.
               </p>
             </CardContent>
           </Card>
@@ -43,7 +51,8 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Track API usage with built-in idempotency to prevent duplicate charges.
+                Track API usage with built-in idempotency to prevent duplicate
+                charges.
               </p>
             </CardContent>
           </Card>
@@ -55,7 +64,8 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Handle plan changes with Stripe proration and Stigg entitlements sync.
+                Handle plan changes with Stripe proration and Stigg entitlements
+                sync.
               </p>
             </CardContent>
           </Card>

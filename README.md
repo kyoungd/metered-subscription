@@ -20,6 +20,52 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Code Quality Tools
+
+This project is configured with ESLint and Prettier to maintain code quality and consistent formatting.
+
+### Available Scripts
+
+- `npm run lint` - Run ESLint to check for code issues
+- `npm run lint:fix` - Automatically fix ESLint issues where possible
+- `npm run format` - Format all files with Prettier
+- `npm run format:check` - Check if files are formatted correctly
+- `npm run type-check` - Run TypeScript compiler to check for type errors
+
+### ESLint Configuration
+
+ESLint is configured with:
+
+- Next.js recommended rules
+- TypeScript support with `@typescript-eslint`
+- React hooks linting
+- Prettier integration to avoid conflicts
+
+### Prettier Configuration
+
+Prettier is configured with sensible defaults:
+
+- 2 spaces for indentation
+- Semicolons enabled
+- Double quotes for strings
+- 80 character line width
+- Trailing commas in ES5
+
+### Editor Integration
+
+For the best development experience, install the recommended VS Code extensions:
+
+- ESLint (`dbaeumer.vscode-eslint`)
+- Prettier (`esbenp.prettier-vscode`)
+- Tailwind CSS IntelliSense (`bradlc.vscode-tailwindcss`)
+- Prisma (`prisma.prisma`)
+
+The project includes VS Code settings that enable:
+
+- Format on save
+- Auto-fix ESLint issues on save
+- Proper TypeScript integration
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -1,6 +1,6 @@
 # NANO-STEP S0.5 — EXTERNAL CLIENT STUBS (Stripe only)
 
-**Purpose:** Provide a *uniform, testable* Stripe client interface and DI registration **without real network calls** yet. All methods return deterministic fakes unless explicitly mocked in tests. No domain logic.
+**Purpose:** Provide a _uniform, testable_ Stripe client interface and DI registration **without real network calls** yet. All methods return deterministic fakes unless explicitly mocked in tests. No domain logic.
 
 ## Allowed paths (create/modify only these for S0.5)
 
@@ -23,8 +23,8 @@
 
 Add to `/lib/scaffold/config.js`:
 
-* `stripeSecretKey` (`MTR_STRIPE_SECRET_KEY`, optional in S0.5)
-* `dryRun` (`MTR_HTTP_DRY_RUN`, default `true`)  // forces stubs; **no network allowed**
+- `stripeSecretKey` (`MTR_STRIPE_SECRET_KEY`, optional in S0.5)
+- `dryRun` (`MTR_HTTP_DRY_RUN`, default `true`) // forces stubs; **no network allowed**
 
 > Keep secrets out of logs; **never** print values.
 
@@ -34,18 +34,16 @@ Add to `/lib/scaffold/config.js`:
 
 `/lib/scaffold/clients/http.js`
 
-* Exports:
+- Exports:
+  - `buildHeaders({env, callState, extra})` → includes:
+    - `authorization` (Bearer or key), **if provided**
+    - `x-request-id`, `x-correlation-id`, tenant header (from config)
+    - `user-agent: "metered-subscriptions/0.1"`
 
-  * `buildHeaders({env, callState, extra})` → includes:
-
-    * `authorization` (Bearer or key), **if provided**
-    * `x-request-id`, `x-correlation-id`, tenant header (from config)
-    * `user-agent: "metered-subscriptions/0.1"`
-  * `http(env)` → returns `{ get, post, put, del }` functions that:
-
-    * **If `env.dryRun === true`** ⇒ **do not** call network; instead return
+  - `http(env)` → returns `{ get, post, put, del }` functions that:
+    - **If `env.dryRun === true`** ⇒ **do not** call network; instead return
       `{ status: 200, json: { stub: true, method, url, body, headers: <scrubbed> } }`.
-    * Real `fetch` with timeouts/retry comes later (not in S0.5).
+    - Real `fetch` with timeouts/retry comes later (not in S0.5).
 
 All methods must **scrub** auth tokens from any returned object used in logs.
 
@@ -55,18 +53,18 @@ All methods must **scrub** auth tokens from any returned object used in logs.
 
 Each client factory receives `{ env, call_state, http }` and returns a **plain object** of async methods. All methods:
 
-* Accept a simple `{ … }` parameter object.
-* Return `{ ok: true, data }` on success; throw `ApiError` on predictable faults.
-* **No network** in S0.5 (`env.dryRun` is always true in tests).
-* Include correlation/tenant headers via `buildHeaders`.
+- Accept a simple `{ … }` parameter object.
+- Return `{ ok: true, data }` on success; throw `ApiError` on predictable faults.
+- **No network** in S0.5 (`env.dryRun` is always true in tests).
+- Include correlation/tenant headers via `buildHeaders`.
 
 ### Stripe (`/lib/scaffold/clients/stripe.js`)
 
 Exports `createStripeClient({ env, call_state, http })` with methods:
 
-* `customers.createOrAttach({ externalId, email? })`
-* `payments.createSetupIntent({ externalId })`
-* `payments.attachMethod({ externalId, paymentMethodId })`
+- `customers.createOrAttach({ externalId, email? })`
+- `payments.createSetupIntent({ externalId })`
+- `payments.attachMethod({ externalId, paymentMethodId })`
 
 Dry-run data returns **stable fake IDs** (e.g., `cus_test_123`, `seti_test_123`, `pm_test_123`), and echoes inputs in a scrubbed `debug` field when `env.nodeEnv === 'test'`.
 
@@ -84,18 +82,18 @@ Return shapes (examples):
 
 Edit `/lib/scaffold/di.js` to:
 
-* Create one app-scope instance of `http = http(env)` and **register** the factory:
+- Create one app-scope instance of `http = http(env)` and **register** the factory:
 
 ```js
 registry.app.stripe = ({ env, call_state }) =>
   createStripeClient({ env, call_state, http });
 ```
 
-* Expose a resolver on request-scope `ctx(headers)`:
+- Expose a resolver on request-scope `ctx(headers)`:
 
 ```js
 const clients = {
-  stripe: registry.app.stripe({ env, call_state })
+  stripe: registry.app.stripe({ env, call_state }),
 };
 return { logger, call_state, env, clients };
 ```
@@ -108,23 +106,23 @@ return { logger, call_state, env, clients };
 
 **/tests/tests_scaffold/clients_stripe.test.js**
 
-* Build env with `dryRun: true`.
-* Create DI container; get `clients.stripe`.
-* Call each method; assert `{ ok:true }` and shape (e.g., `data.customer.id` starts with `cus_`).
-* Assert the dry-run echo (in `debug`) contains `x-request-id` and **does not** leak auth tokens.
+- Build env with `dryRun: true`.
+- Create DI container; get `clients.stripe`.
+- Call each method; assert `{ ok:true }` and shape (e.g., `data.customer.id` starts with `cus_`).
+- Assert the dry-run echo (in `debug`) contains `x-request-id` and **does not** leak auth tokens.
 
 ---
 
 ## Acceptance (Definition of Done)
 
-* `make lint`, `make typecheck`, `make test` remain green.
-* No actual network attempts in S0.5 (verified via dry-run echo).
-* DI `ctx(headers)` returns `{ clients }` with **Stripe** only.
-* Each Stripe client method:
+- `make lint`, `make typecheck`, `make test` remain green.
+- No actual network attempts in S0.5 (verified via dry-run echo).
+- DI `ctx(headers)` returns `{ clients }` with **Stripe** only.
+- Each Stripe client method:
+  - Returns `{ ok:true, data:… }` with stable shapes.
+  - Adds `x-request-id`, `x-correlation-id`, and tenant header to outgoing header set.
+  - Never logs or returns raw secret values.
 
-  * Returns `{ ok:true, data:… }` with stable shapes.
-  * Adds `x-request-id`, `x-correlation-id`, and tenant header to outgoing header set.
-  * Never logs or returns raw secret values.
-* Config extended with provider key(s); `.env.example` updated with `MTR_STRIPE_SECRET_KEY` and `MTR_HTTP_DRY_RUN`.
+- Config extended with provider key(s); `.env.example` updated with `MTR_STRIPE_SECRET_KEY` and `MTR_HTTP_DRY_RUN`.
 
 ---

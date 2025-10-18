@@ -2,18 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --color-primary: #0A327F;
-  --color-primary-hover: #052B6C;
-  --color-accent: #314E8D;
-  --color-bg-light: #F1F6FB;
-  --color-text: #1A1A1A;
+  --color-primary: #0a327f;
+  --color-primary-hover: #052b6c;
+  --color-accent: #314e8d;
+  --color-bg-light: #f1f6fb;
+  --color-text: #1a1a1a;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -54,7 +54,9 @@ body {
   line-height: 1.5;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   color: var(--color-primary);
   font-weight: 800;
 }
@@ -76,16 +78,22 @@ h1, h2, h3 {
 }
 
 .demo-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .demo-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
 .gradient-bg {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    var(--color-accent) 100%
+  );
 }
 
 @theme inline {

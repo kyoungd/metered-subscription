@@ -5,12 +5,14 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const db = globalForPrisma.prisma ?? new PrismaClient({
-  datasources: {
-    db: {
-      url: env.DATABASE_URL,
+export const db =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    datasources: {
+      db: {
+        url: env.DATABASE_URL,
+      },
     },
-  },
-});
+  });
 
 if (env.NODE_ENV !== "production") globalForPrisma.prisma = db;

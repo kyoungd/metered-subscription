@@ -14,7 +14,7 @@ export const PLANS_CONFIG = {
     trialDays: 14,
   },
   starter: {
-    stripePriceId: "price_1SF55w33pr8E7tWLQJNWOvxd", 
+    stripePriceId: "price_1SF55w33pr8E7tWLQJNWOvxd",
     apiCalls: 60,
     trialDays: 0,
   },

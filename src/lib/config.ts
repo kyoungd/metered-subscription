@@ -7,7 +7,7 @@ export const config = {
     url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     timezone: process.env.APP_TIMEZONE || "America/Los_Angeles",
   },
-  
+
   // Plans configuration (from your docs)
   plans: {
     trial: {
@@ -16,7 +16,7 @@ export const config = {
       trialDays: 14,
     },
     starter: {
-      stripePriceId: "price_1SF55w33pr8E7tWLQJNWOvxd", 
+      stripePriceId: "price_1SF55w33pr8E7tWLQJNWOvxd",
       apiCalls: 60,
       trialDays: 0,
     },
@@ -31,13 +31,13 @@ export const config = {
       trialDays: 0,
     },
   },
-  
+
   // Usage tracking
   usage: {
     idempotencyWindowHours: 24,
     defaultMetric: "api_call",
   },
-  
+
   // Webhook configuration
   webhooks: {
     stripe: {
