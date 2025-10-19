@@ -15,9 +15,9 @@ This SOP defines repeatable steps for design, implementation, review, and testin
 - **Overall Design** - AI GPT-5 thinking
 - **Individual Step**
   - **Overview** - the docs/step_x.x.md document has a description of the next build cycle.
-  - **Cursor Plan Query** - Created during the "Overall Design".
-  - **Context JSON** - Created by running Cursor Plan with the 'Curser Plan Query'.
-  - **Run the Plan** - Run the plan to generate the code.
+  - **Cursor Pre-Plan Query** - Created during the "Overall Design".  Fixed template + generated "constraint" section.
+  - **Cursor Plan Query** - Using the result, fill in the context.json schema.
+  - **Run the Plan** - Run the plan with context.json to generate the code.
   - **Implementation Review - AI** - GPT 5: Interface/Schema Consistency, Event & Message Contracts, Adapter/SDK Usage, Error Envelope Integrity, Transaction & Atomicity, Idempotency, Time & Money Units, Logic Drift from Design, Security/PII Rules, Performance/ Await Safety
   - **Implementation Review - User** - Human: always show the diff; user must review and explicitly accept code before commit.
   - **Create and run Testing** - Cursor + Sonnet 4.5
@@ -27,7 +27,7 @@ This SOP defines repeatable steps for design, implementation, review, and testin
 
 
 
-SOLUTION
+DETAIL IMPLEMENTATION
 
 ---
 
