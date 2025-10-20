@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "story_id": "UC-01",
+  "step_id": "1.1",
+  "endpoint": "POST /api/orgs/create",
+  "goal": "Create org/tenant record keyed by Clerk org ID; idempotent on request_id; return {orgId}.",
+  "acceptance": [
+    "returns 200 with {orgId} and correlationId on valid input",
+    "requires x-request-id and x-correlation-id (auto-generate if missing per policy)",
+    "rejects unauthenticated with 401",
+    "validates payload (none required; empty body allowed); on violation returns 400 with wrapError format",
+    "duplicate request_id returns identical body (idempotency)",
+    "POST /api/orgs/create performs no external I/O (assert no clients/* calls)",
+    "forbidden when session user cannot be resolved, returns 403",
+    "duplicate org for same Clerk orgId handled idempotently → 200 with original {orgId}",
+    "logs redact email/name; no raw tokens",
+    "createdAt timestamps are UTC (Z)"
+  ],
+  "invariants": [
+    "Envelope: wrapSuccess / wrapError with correlationId",
+    "Headers: Require x-request-id, x-correlation-id; auto-generate UUIDv4 via requireHeaders",
+    "Security (default): bearer (Clerk session)",
+    "Source of Truth (SoT): Stripe (billing/periods), DB UsageCounter (quota), Stigg (metadata/preview only)",
+    "Time: Server authoritative; UTC (Z); periodKey derived server-side from Stripe billing cycle (not applicable to this step)",
+    "Idempotency: App routes by request_id; Stripe via idempotency keys; webhooks by event.id",
+    "Hot Path: /api/quota/check must never perform external I/O (this step is not hot-path; prohibit external provider I/O anyway)",
+    "Logging: Redact PII; structured logs include orgId, request_id, correlation_id"
+  ],
+  "touch_set": [
+    "src/lib/utils/http/envelope.ts",
+    "src/lib/utils/http/headers.ts",
+    "src/lib/utils/logger.ts",
+    "src/lib/middleware/auth.ts",
+    "src/lib/utils/validation.ts",
+    "src/lib/utils/ids.ts",
+    "src/lib/utils/errors.ts",
+    "src/lib/utils/security/redaction.ts",
+    "src/lib/db/repositories/org-repository.ts",
+    "src/lib/services/orgs/org-service.ts",
+    "src/lib/api/orgs/create-org-dto.ts",
+    "src/lib/errors/org-errors.ts",
+    "src/app/api/orgs/create/route.ts",
+    "jest.config.js",
+    "jest.setup.js",
+    "tests/helpers/mock-clerk-auth.ts",
+    "tests/helpers/mock-db.ts",
+    "tests/helpers/test-request.ts",
+    "tests/integration/api/orgs-create.test.ts",
+    "tests/unit/services/org-service.test.ts",
+    "tests/unit/repositories/org-repository.test.ts",
+    "docs/api.md"
+  ],
+  "touch_set_mode": "proposed",
+  "touch_set_rationale": "PHASE 1: Foundation Infrastructure (8 files, all NEW)\n\n- src/lib/utils/http/envelope.ts (new): Provides wrapSuccess and wrapError for standard API envelope format. Required by acceptance criteria #1, #4 for consistent response structure with correlationId.\n  Reason: Satisfies invariant 'Envelope: wrapSuccess / wrapError with correlationId'.\n  Notes: TS-first; no-IO/hot-path safe; pure utility function.\n\n- src/lib/utils/http/headers.ts (new): Implements requireHeaders to validate/auto-generate x-request-id and x-correlation-id. Required by acceptance criteria #2.\n  Reason: Satisfies invariant 'Headers: Require x-request-id, x-correlation-id; auto-generate UUIDv4 via requireHeaders'.\n  Notes: TS-first; no-IO/hot-path safe; exports header constants HEADER_REQUEST_ID, HEADER_CORRELATION_ID.\n\n- src/lib/utils/logger.ts (new): Structured JSON logger with orgId, request_id, correlation_id support. Required by acceptance criteria #9 and invariant 'Logging: Redact PII'.\n  Reason: Satisfies invariant 'Logging: Redact PII; structured logs include orgId, request_id, correlation_id'.\n  Notes: TS-first; integrates with redaction utility; no external I/O.\n\n- src/lib/middleware/auth.ts (new): Implements requireAuth for Clerk session validation and clerkOrgId extraction. Required by acceptance criteria #3, #7.\n  Reason: Satisfies invariant 'Security (default): bearer (Clerk session)' and acceptance 'rejects unauthenticated with 401'.\n  Notes: TS-first; uses @clerk/nextjs auth() helper; returns auth context {userId, clerkOrgId}.\n\n- src/lib/utils/validation.ts (new): Zod wrapper utilities (safeParseResponse, mapZodError) for input validation. Required by acceptance criteria #4.\n  Reason: Satisfies acceptance 'validates payload; on violation returns 400 with wrapError format'.\n  Notes: TS-first; no-IO/hot-path safe; converts Zod errors to envelope format.\n\n- src/lib/utils/ids.ts (new): ID generation utility using cuid() for stable orgId generation. Required for deterministic idempotency behavior (acceptance #5).\n  Reason: Satisfies acceptance 'duplicate request_id returns identical body' by providing stable ID generation.\n  Notes: TS-first; no-IO/hot-path safe; wraps Prisma's cuid() for consistency.\n\n- src/lib/utils/errors.ts (new): Error normalization utility (toDomainError) and base error classes. Required by acceptance criteria #4 for consistent error handling.\n  Reason: Satisfies acceptance 'returns 400 with wrapError format' by normalizing all errors to envelope format.\n  Notes: TS-first; no-IO/hot-path safe; defines base error classes for domain errors.\n\n- src/lib/utils/security/redaction.ts (new): PII redaction utility for logs. Required by acceptance criteria #9.\n  Reason: Satisfies acceptance 'logs redact email/name; no raw tokens' and invariant 'Logging: Redact PII'.\n  Notes: TS-first; no-IO/hot-path safe; removes sensitive fields from log data.\n\nPHASE 2: Org Domain Logic (4 files, all NEW)\n\n- src/lib/db/repositories/org-repository.ts (new): Repository layer implementing upsertOrganizationByClerkOrgId for idempotent org creation. Required by acceptance criteria #5, #8.\n  Reason: Satisfies acceptance 'duplicate org for same Clerk orgId handled idempotently' and 'duplicate request_id returns identical body'.\n  Notes: TS-first; uses Prisma db client from src/lib/db.ts; follows code-boundary.md structure (src/lib/db/repositories/).\n\n- src/lib/services/orgs/org-service.ts (new): Service layer implementing createOrganization business logic with Clerk org ID validation. Required by acceptance criteria #1, #8.\n  Reason: Satisfies acceptance 'returns 200 with {orgId}' and enforces domain invariants (org_... format validation).\n  Notes: TS-first; follows code-boundary.md structure (src/lib/services/); calls repository layer; no external I/O.\n\n- src/lib/api/orgs/create-org-dto.ts (new): Zod schema for request validation and TypeScript type exports. Required by acceptance criteria #4.\n  Reason: Satisfies acceptance 'validates payload; on violation returns 400' by defining input contract.\n  Notes: TS-first; follows code-boundary.md structure (src/lib/api/); schema/type reuse.\n\n- src/lib/errors/org-errors.ts (new): Org-specific error classes (OrgValidationError, OrgCreationError). Required by acceptance criteria #4.\n  Reason: Satisfies acceptance 'returns 400 with wrapError format' by providing domain-specific error types.\n  Notes: TS-first; extends base error classes from src/lib/utils/errors.ts.\n\nPHASE 3: API Route (1 file, NEW)\n\n- src/app/api/orgs/create/route.ts (new): Next.js App Router endpoint implementing POST handler. Required by acceptance criteria #1-10.\n  Reason: Primary endpoint implementation satisfying all acceptance criteria; orchestrates header validation, auth, service call, envelope response.\n  Notes: TS-first; follows Next.js App Router pattern; integrates all infrastructure utilities; structured logging with correlation IDs.\n\nPHASE 4: Testing Infrastructure (7 files, all NEW)\n\n- jest.config.js (new): Jest configuration for TypeScript + Next.js with path aliases. Required for acceptance criteria validation via automated tests.\n  Reason: Enables test execution for all acceptance criteria; configures TypeScript support and module resolution.\n  Notes: Configures ts-jest, path aliases matching tsconfig.json, Prisma mock setup.\n\n- jest.setup.js (new): Jest setup file for global test configuration and mocks. Required for test infrastructure.\n  Reason: Provides global test setup including Prisma client mocking and environment configuration.\n  Notes: Runs before all tests; sets up global mocks and test utilities.\n\n- tests/helpers/mock-clerk-auth.ts (new): Mock Clerk session helper for auth testing. Required by acceptance criteria #3, #7.\n  Reason: Enables testing of 'rejects unauthenticated with 401' and 'forbidden when session user cannot be resolved'.\n  Notes: TS-first; provides mockClerkAuth utility for test isolation.\n\n- tests/helpers/mock-db.ts (new): Mock Prisma client helper for database testing. Required for repository/service testing.\n  Reason: Enables isolated testing of database interactions without actual DB connection.\n  Notes: TS-first; provides mockPrisma utility with typed mocks.\n\n- tests/helpers/test-request.ts (new): HTTP request builder utility for integration tests. Required by acceptance criteria #1-10.\n  Reason: Simplifies test request construction with headers, auth, and payload.\n  Notes: TS-first; provides testRequest builder for consistent test setup.\n\n- tests/integration/api/orgs-create.test.ts (new): Integration tests implementing Baseline 5 + Situational test matrix. Required by acceptance criteria #1-10.\n  Reason: Validates all acceptance criteria through automated tests; follows tiered test policy from pre-plan §5.\n  Notes: TS-first; follows code-boundary.md structure (tests/integration/); tests happy path, missing headers, unauthenticated, invalid payload, idempotency, no org context, duplicate clerk org, logging redaction, UTC timestamps.\n\n- tests/unit/services/org-service.test.ts (new): Unit tests for org service layer. Required for service logic validation.\n  Reason: Validates service idempotency logic, repository interaction, error handling in isolation.\n  Notes: TS-first; follows code-boundary.md structure (tests/unit/).\n\n- tests/unit/repositories/org-repository.test.ts (new): Unit tests for org repository layer. Required for repository logic validation.\n  Reason: Validates upsert behavior and database interaction patterns.\n  Notes: TS-first; follows code-boundary.md structure (tests/unit/).\n\nPHASE 5: Documentation (1 file, NEW or UPDATE)\n\n- docs/api.md (new or update): API documentation for POST /api/orgs/create endpoint. Required for completeness.\n  Reason: Documents endpoint contract, request/response examples, error codes per allowed patterns (Appendix A).\n  Notes: Only adds missing endpoint entry; no new docs files; follows standard API doc format.\n\nexception_request: None. All files follow allowed patterns from Appendix A. The extensive touch_set is unavoidable because this is the foundational story (1.1) for a greenfield codebase. Infrastructure utilities (Phase 1) are prerequisites for the endpoint (Phase 3) and must be created to satisfy core.md invariants. All files align with code-boundary.md structure: src/lib/services/, src/lib/db/repositories/, src/lib/utils/, tests/integration/, tests/unit/. No new top-level folders are created.\n\nNOTE: LOC budget of ≤120 is exceeded due to foundational infrastructure requirements. Estimated actual LOC: ~800-1000 across all files. This is acknowledged as unavoidable for Story 1.1 which establishes the entire HTTP/auth/logging/testing foundation. Subsequent stories will have much smaller touch_sets as they reuse this infrastructure.",
+  "reuse_first": [
+    "db → src/lib/db.ts",
+    "env → src/lib/env.ts",
+    "config → src/lib/config.ts",
+    "PrismaClient types → @prisma/client",
+    "Organization model → @prisma/client",
+    "cuid() → @prisma/client (via Prisma)"
+  ],
+  "reuse_mode": "proposed",
+  "reuse_rationale": "Limited reuse due to greenfield state. Only existing infrastructure:\n\n- db → src/lib/db.ts: Prisma client singleton for database access. Required by org-repository.ts for upsert operations. Satisfies acceptance #8 'duplicate org for same Clerk orgId handled idempotently'. Notes: Already imported; no-IO client (IO happens at query time); hot-path safe pattern.\n\n- env → src/lib/env.ts: Validated environment variables (Zod schema). Required by middleware/auth.ts for Clerk configuration and logger.ts for environment-aware logging. Satisfies invariant 'Security (default): bearer'. Notes: Already exists; type-safe env access; no side effects.\n\n- config → src/lib/config.ts: Application configuration including plans, usage settings, webhook secrets. Required by org-service.ts for business rules and future plan-related logic. Satisfies invariant 'Source of Truth (SoT)'. Notes: Already exists; read-only configuration; no side effects.\n\n- PrismaClient types → @prisma/client: TypeScript types for Prisma client. Required by org-repository.ts for type-safe database queries. Notes: Type reuse only; no runtime dependency.\n\n- Organization model → @prisma/client: Prisma-generated Organization model type. Required by org-repository.ts and org-service.ts for type-safe org entity handling. Satisfies acceptance #1 'returns 200 with {orgId}'. Notes: Type reuse only; schema already defined in prisma/schema.prisma.\n\n- cuid() → @prisma/client: CUID generation function from Prisma. Can be wrapped in src/lib/utils/ids.ts for stable ID generation pattern. Satisfies acceptance #5 'duplicate request_id returns identical body'. Notes: Already available via Prisma; deterministic ID generation.\n\nMost utilities (wrapSuccess, wrapError, requireHeaders, requireAuth, logger, validation, redaction) DO NOT EXIST yet and must be created in Phase 1 (Infrastructure). These are foundational dependencies for the endpoint and cannot be reused from existing sources. This extensive creation is unavoidable for Story 1.1 as the first implementation story.\n\nPreferred symbols for future reuse (after creation in this story):\n- wrapSuccess, wrapError → src/lib/utils/http/envelope.ts\n- requireHeaders → src/lib/utils/http/headers.ts\n- requireAuth → src/lib/middleware/auth.ts\n- logger → src/lib/utils/logger.ts\n- safeParseResponse, mapZodError → src/lib/utils/validation.ts\n- redactPII → src/lib/utils/security/redaction.ts\n- toDomainError → src/lib/utils/errors.ts\n\nAll reused symbols are no-IO/hot-path safe. No external client calls (Stripe, Stigg, Clerk API) are reused or made in this step, satisfying acceptance #6 'performs no external I/O'.",
+  "non_goals": [
+    "No Stripe customer creation or subscription setup (deferred to Story 1.2, 1.3)",
+    "No Stigg provisioning (deferred to Story 1.4)",
+    "No usage counter seeding (deferred to Story 1.5)",
+    "No external API calls to Clerk, Stripe, or Stigg (only Clerk session validation via middleware)",
+    "No multi-user org support (v1 is owner-only per core.md §13)",
+    "No Redis caching (optional in v1 per core.md §3)",
+    "No Sentry error tracking integration (optional per core.md §3)",
+    "No webhook processing (deferred to Story 2.3, 2.4)",
+    "No plan/subscription logic (deferred to Story 1.3)",
+    "No quota enforcement or usage recording (deferred to Story 4.1, 4.2)",
+    "No period key derivation (not applicable to org creation; deferred to usage stories)",
+    "No email notifications or user invitations",
+    "No org update or delete operations (only create)",
+    "No org listing or search endpoints (only single org creation)",
+    "No rate limiting or DDoS protection (infrastructure concern, not story scope)",
+    "No GraphQL or alternative API formats (REST only per architecture)",
+    "No custom org metadata or settings (minimal viable org entity only)"
+  ],
+  "loc_budget": 120,
+  "required_headers": [
+    "x-request-id",
+    "x-correlation-id"
+  ],
+  "extra_required_headers": [
+    "authorization"
+  ],
+  "security": "bearer",
+  "side_effects": "db",
+  "test_matrix": [
+    "happy_path → POST /api/orgs/create with {} → 200 {data: {orgId}, correlationId}",
+    "missing_headers → omit x-request-id/x-correlation-id → 200 with auto-generated IDs",
+    "unauthenticated → no bearer token → 401 {error}",
+    "invalid_payload → malformed JSON → 400 {error}",
+    "idempotency.duplicate → same request_id within 24h → 200 identical body",
+    "hot_path.no_io → assert no calls to stripe/stigg/clerk clients",
+    "authz.denied → session missing Clerk org context → 403 {error}",
+    "boundary.duplicate_org → same Clerk orgId → 200 original {orgId}",
+    "logging.redaction → send PII {email,name} → logs hide raw values",
+    "time.utc → assert createdAt timestamps are UTC (Z)"
+  ],
+  "rollback": "Delete org row created in this step using Prisma delete operation on Organization table by id. No external calls to revert (no Stripe/Stigg/Clerk API mutations). Revert code changes via git. No webhook replay needed. No usage counters to clean up. Simple DB-only rollback.",
+  "sources": [
+    {
+      "path": "docs/core.md"
+    },
+    {
+      "path": "docs/code-boundary.md"
+    },
+    {
+      "path": "docs/plan/steps.md"
+    },
+    {
+      "path": "prisma/schema.prisma"
+    },
+    {
+      "path": "src/lib/db.ts"
+    },
+    {
+      "path": "src/lib/env.ts"
+    },
+    {
+      "path": "src/lib/config.ts"
+    }
+  ]
+}
+
