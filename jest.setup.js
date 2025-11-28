@@ -160,8 +160,46 @@ jest.mock('@/lib/stripe', () => ({
       list: jest.fn(),
       create: jest.fn(),
     },
+    subscriptions: {
+      create: jest.fn(),
+    },
   },
-  PLANS_CONFIG: {},
+  PLANS_CONFIG: {
+    trial: {
+      stripePriceId: "price_1SF55833pr8E7tWLycMY8XKB",
+      apiCalls: 30,
+      trialDays: 14,
+    },
+    starter: {
+      stripePriceId: "price_1SF55w33pr8E7tWLQJNWOvxd",
+      apiCalls: 60,
+      trialDays: 0,
+    },
+    growth: {
+      stripePriceId: "price_1SF56S33pr8E7tWLslF4FKKW",
+      apiCalls: 300,
+      trialDays: 0,
+    },
+    pro: {
+      stripePriceId: "price_1SF56w33pr8E7tWLzL6eOFPW",
+      apiCalls: 1500,
+      trialDays: 0,
+    },
+  },
+}));
+
+// Mock Stigg
+jest.mock('@/lib/stigg', () => ({
+  stigg: {
+    provisionSubscription: jest.fn(),
+  },
+  getStiggPlanId: jest.fn((planCode) => `plan_${planCode}`),
+  STIGG_PLAN_MAPPING: {
+    trial: "plan_trial",
+    starter: "plan_starter",
+    growth: "plan_growth",
+    pro: "plan_pro",
+  },
 }));
 
 // Suppress console errors in tests (optional)
