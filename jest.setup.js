@@ -170,6 +170,9 @@ jest.mock('@/lib/stripe', () => ({
     paymentMethods: {
       attach: jest.fn(),
     },
+    webhooks: {
+      constructEvent: jest.fn(),
+    },
   },
   PLANS_CONFIG: {
     trial: {

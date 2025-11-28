@@ -240,6 +240,40 @@ export function mockStripeCustomerUpdateError(error: Error): void {
 }
 
 /**
+ * Mocks Stripe webhooks.constructEvent to return a valid event
+ * 
+ * @param eventId - Stripe event ID
+ * @param eventType - Event type (e.g., "customer.subscription.updated")
+ * @param eventData - Event data object
+ */
+export function mockStripeWebhookConstructEvent(
+  eventId: string = "evt_test123",
+  eventType: string = "customer.subscription.updated",
+  eventData: any = {}
+): void {
+  mockStripe.webhooks.constructEvent = jest.fn().mockReturnValue({
+    id: eventId,
+    object: "event",
+    type: eventType,
+    data: {
+      object: eventData,
+    },
+    created: Math.floor(Date.now() / 1000),
+  } as Stripe.Event);
+}
+
+/**
+ * Mocks Stripe webhooks.constructEvent to throw an error (invalid signature)
+ * 
+ * @param error - Error to throw
+ */
+export function mockStripeWebhookConstructEventError(error: Error): void {
+  mockStripe.webhooks.constructEvent = jest.fn().mockImplementation(() => {
+    throw error;
+  });
+}
+
+/**
  * Resets all Stripe mocks
  */
 export function resetStripeMocks(): void {

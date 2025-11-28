@@ -10,6 +10,7 @@ export interface TestRequestOptions {
   method?: string;
   headers?: Record<string, string>;
   body?: unknown;
+  rawBody?: string; // For raw body (e.g., webhooks)
   url?: string;
 }
 
@@ -24,6 +25,7 @@ export function createTestRequest(options: TestRequestOptions = {}): NextRequest
     method = "POST",
     headers = {},
     body,
+    rawBody,
     url = "http://localhost:3000/api/test",
   } = options;
 
@@ -34,7 +36,11 @@ export function createTestRequest(options: TestRequestOptions = {}): NextRequest
     headers: requestHeaders,
   };
 
-  if (body !== undefined) {
+  if (rawBody !== undefined) {
+    // Use raw body as-is (for webhooks)
+    requestInit.body = rawBody;
+  } else if (body !== undefined) {
+    // Convert body to JSON string
     requestInit.body = JSON.stringify(body);
     if (!requestHeaders.has("content-type")) {
       requestHeaders.set("content-type", "application/json");

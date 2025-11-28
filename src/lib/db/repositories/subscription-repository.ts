@@ -145,3 +145,41 @@ export async function findActiveSubscriptionByOrganizationId(
   });
 }
 
+/**
+ * Updates a subscription from Stripe webhook event data
+ * 
+ * @param stripeSubscriptionId - Stripe subscription ID
+ * @param data - Subscription update data from Stripe
+ * @returns Updated subscription record
+ */
+export async function updateSubscriptionFromStripe(
+  stripeSubscriptionId: string,
+  data: {
+    status: string;
+    currentPeriodStart: Date;
+    currentPeriodEnd: Date;
+    trialEndsAt?: Date | null;
+  }
+): Promise<SubscriptionRecord> {
+  try {
+    const subscription = await db.subscription.update({
+      where: {
+        stripeSubscriptionId,
+      },
+      data: {
+        status: data.status,
+        currentPeriodStart: data.currentPeriodStart,
+        currentPeriodEnd: data.currentPeriodEnd,
+        trialEndsAt: data.trialEndsAt ?? null,
+        updatedAt: new Date(),
+      },
+    });
+    return subscription;
+  } catch (error) {
+    throw new OrgCreationError(
+      `Failed to update subscription from Stripe: ${stripeSubscriptionId}`,
+      { originalError: error instanceof Error ? error.message : String(error) }
+    );
+  }
+}
+
