@@ -146,6 +146,100 @@ export function mockStripeSubscriptionCreateError(error: Error): void {
 }
 
 /**
+ * Mocks Stripe setupIntents.create to return a new SetupIntent
+ * 
+ * @param setupIntentId - Stripe SetupIntent ID to return
+ * @param customerId - Stripe customer ID
+ * @param clientSecret - Client secret (default: auto-generated)
+ */
+export function mockStripeSetupIntentCreate(
+  setupIntentId: string = "seti_test123",
+  customerId: string = "cus_test123",
+  clientSecret: string = "seti_test123_secret_test456"
+): void {
+  mockStripe.setupIntents.create = jest.fn().mockResolvedValue({
+    id: setupIntentId,
+    object: "setup_intent",
+    customer: customerId,
+    client_secret: clientSecret,
+    status: "requires_payment_method",
+    usage: "off_session",
+    metadata: {},
+    created: Math.floor(Date.now() / 1000),
+  } as Stripe.SetupIntent);
+}
+
+/**
+ * Mocks Stripe setupIntents.create to throw an error
+ * 
+ * @param error - Error to throw
+ */
+export function mockStripeSetupIntentCreateError(error: Error): void {
+  mockStripe.setupIntents.create = jest.fn().mockRejectedValue(error);
+}
+
+/**
+ * Mocks Stripe paymentMethods.attach to successfully attach a payment method
+ * 
+ * @param paymentMethodId - Payment method ID to return
+ * @param customerId - Customer ID the payment method is attached to
+ */
+export function mockStripePaymentMethodAttach(
+  paymentMethodId: string = "pm_test123",
+  customerId: string = "cus_test123"
+): void {
+  mockStripe.paymentMethods.attach = jest.fn().mockResolvedValue({
+    id: paymentMethodId,
+    object: "payment_method",
+    customer: customerId,
+    type: "card",
+    card: {
+      brand: "visa",
+      last4: "4242",
+      exp_month: 12,
+      exp_year: 2025,
+    },
+  } as Stripe.PaymentMethod);
+}
+
+/**
+ * Mocks Stripe paymentMethods.attach to throw an error
+ * 
+ * @param error - Error to throw
+ */
+export function mockStripePaymentMethodAttachError(error: Error): void {
+  mockStripe.paymentMethods.attach = jest.fn().mockRejectedValue(error);
+}
+
+/**
+ * Mocks Stripe customers.update to successfully update a customer
+ * 
+ * @param customerId - Customer ID
+ * @param defaultPaymentMethodId - Default payment method ID
+ */
+export function mockStripeCustomerUpdate(
+  customerId: string = "cus_test123",
+  defaultPaymentMethodId: string = "pm_test123"
+): void {
+  mockStripe.customers.update = jest.fn().mockResolvedValue({
+    id: customerId,
+    object: "customer",
+    invoice_settings: {
+      default_payment_method: defaultPaymentMethodId,
+    },
+  } as Stripe.Customer);
+}
+
+/**
+ * Mocks Stripe customers.update to throw an error
+ * 
+ * @param error - Error to throw
+ */
+export function mockStripeCustomerUpdateError(error: Error): void {
+  mockStripe.customers.update = jest.fn().mockRejectedValue(error);
+}
+
+/**
  * Resets all Stripe mocks
  */
 export function resetStripeMocks(): void {

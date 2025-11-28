@@ -159,9 +159,16 @@ jest.mock('@/lib/stripe', () => ({
     customers: {
       list: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     subscriptions: {
       create: jest.fn(),
+    },
+    setupIntents: {
+      create: jest.fn(),
+    },
+    paymentMethods: {
+      attach: jest.fn(),
     },
   },
   PLANS_CONFIG: {
