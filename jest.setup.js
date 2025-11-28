@@ -153,6 +153,17 @@ jest.mock('next/cache', () => ({
   revalidateTag: jest.fn(),
 }));
 
+// Mock Stripe
+jest.mock('@/lib/stripe', () => ({
+  stripe: {
+    customers: {
+      list: jest.fn(),
+      create: jest.fn(),
+    },
+  },
+  PLANS_CONFIG: {},
+}));
+
 // Suppress console errors in tests (optional)
 // global.console.error = jest.fn();
 // global.console.warn = jest.fn();

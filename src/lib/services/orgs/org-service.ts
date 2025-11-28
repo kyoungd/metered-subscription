@@ -17,13 +17,15 @@ export interface CreateOrganizationResult {
 
 /**
  * Validates Clerk organization ID format
- * Clerk org IDs follow the pattern: org_[a-zA-Z0-9]+
+ * Clerk org IDs follow the pattern: org_[a-zA-Z0-9_]+
+ * Note: Clerk IDs can contain underscores in the random portion
  * 
  * @param clerkOrgId - Clerk organization ID to validate
  * @returns True if valid format
  */
 export function isValidClerkOrgId(clerkOrgId: string): boolean {
-  return /^org_[a-zA-Z0-9]+$/.test(clerkOrgId);
+  // Matches org_ followed by at least one alphanumeric or underscore character
+  return /^org_[a-zA-Z0-9_]+$/.test(clerkOrgId);
 }
 
 /**

@@ -26,6 +26,8 @@ describe("Organization Service", () => {
       expect(isValidClerkOrgId("org_test123")).toBe(true);
       expect(isValidClerkOrgId("org_ABC123xyz")).toBe(true);
       expect(isValidClerkOrgId("org_1234567890")).toBe(true);
+      expect(isValidClerkOrgId("org_test_with_underscores")).toBe(true);
+      expect(isValidClerkOrgId("org_e2e_test_123")).toBe(true);
     });
 
     test("returns false for invalid Clerk org ID", () => {

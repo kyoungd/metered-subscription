@@ -14,6 +14,7 @@ export interface OrganizationRecord {
   id: string;
   clerkOrgId: string;
   name: string;
+  stripeCustomerId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -84,5 +85,36 @@ export async function findOrganizationByClerkOrgId(
       clerkOrgId,
     },
   });
+}
+
+/**
+ * Updates organization with Stripe customer ID
+ * 
+ * @param orgId - Internal organization ID
+ * @param stripeCustomerId - Stripe customer ID to set
+ * @returns Updated organization record
+ * @throws OrgCreationError if update fails
+ */
+export async function updateOrganizationStripeCustomerId(
+  orgId: string,
+  stripeCustomerId: string
+): Promise<OrganizationRecord> {
+  try {
+    const organization = await db.organization.update({
+      where: {
+        id: orgId,
+      },
+      data: {
+        stripeCustomerId,
+      },
+    });
+
+    return organization;
+  } catch (error) {
+    throw new OrgCreationError(
+      `Failed to update organization with Stripe customer ID: ${orgId}`,
+      { originalError: error instanceof Error ? error.message : String(error) }
+    );
+  }
 }
 

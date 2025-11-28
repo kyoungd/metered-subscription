@@ -23,6 +23,8 @@ model Organization {
   usageCounters UsageCounter[]
   usageRecords UsageRecord[]
 
+  stripeCustomerId String? @unique @map("stripe_customer_id")
+
   @@map("organizations")
 }
 

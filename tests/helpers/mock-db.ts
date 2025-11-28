@@ -67,12 +67,14 @@ export function createMockOrganization(overrides?: {
   id?: string;
   clerkOrgId?: string;
   name?: string;
+  stripeCustomerId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }): {
   id: string;
   clerkOrgId: string;
   name: string;
+  stripeCustomerId: string | null;
   createdAt: Date;
   updatedAt: Date;
 } {
@@ -81,6 +83,7 @@ export function createMockOrganization(overrides?: {
     id: "org_internal_123",
     clerkOrgId: "org_test456",
     name: "Test Organization",
+    stripeCustomerId: null,
     createdAt: now,
     updatedAt: now,
     ...overrides,

@@ -49,15 +49,21 @@ export function safeParseResponse<T>(
  * @returns ValidationError with formatted details
  */
 export function mapZodError(error: ZodError): ValidationError {
+  if (!error || !error.errors || !Array.isArray(error.errors)) {
+    return new ValidationError("Validation failed", {
+      originalError: "Invalid ZodError structure",
+    });
+  }
+
   const details = error.errors.map((err) => ({
-    path: err.path.join("."),
-    message: err.message,
-    code: err.code,
+    path: err.path ? err.path.join(".") : "unknown",
+    message: err.message || "Validation error",
+    code: err.code || "invalid_type",
   }));
   
   const firstError = error.errors[0];
   const message = firstError
-    ? `Validation failed at ${firstError.path.join(".")}: ${firstError.message}`
+    ? `Validation failed at ${firstError.path ? firstError.path.join(".") : "unknown"}: ${firstError.message || "Validation error"}`
     : "Validation failed";
   
   return new ValidationError(message, { errors: details });

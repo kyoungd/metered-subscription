@@ -15,6 +15,10 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
+    "test:e2e": "jest --config jest.config.e2e.js",
+    "test:e2e:setup": "docker-compose -f docker-compose.test.yml up -d && sleep 3 && npx prisma migrate deploy",
+    "test:e2e:teardown": "docker-compose -f docker-compose.test.yml down -v",
+    "test:e2e:run": "npm run test:e2e:setup && npm run test:e2e; npm run test:e2e:teardown",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
@@ -38,6 +42,7 @@
     "react-dom": "19.1.0",
     "react-hook-form": "^7.65.0",
     "stripe": "^19.1.0",
+    "svix": "^1.81.0",
     "tailwind-merge": "^3.3.1",
     "zod": "^4.1.12"
   },
