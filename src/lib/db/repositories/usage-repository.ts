@@ -142,3 +142,123 @@ export async function findUsageCountersByOrganizationId(
   });
 }
 
+export interface UsageRecordRecord {
+  id: string;
+  clerkOrgId: string;
+  metric: string;
+  value: number;
+  occurredAt: Date;
+  metadata: unknown;
+  organizationId: string;
+  subscriptionId: string;
+  usageCounterId: string;
+  createdAt: Date;
+}
+
+/**
+ * Atomically increments the used value of a usage counter
+ * 
+ * @param counterId - Usage counter ID
+ * @param value - Value to increment by (must be positive)
+ * @returns Updated usage counter record
+ * @throws OrgCreationError if database operation fails
+ */
+export async function incrementUsageCounter(
+  counterId: string,
+  value: number
+): Promise<UsageCounterRecord> {
+  if (value <= 0) {
+    throw new OrgCreationError(
+      `Invalid increment value: ${value}. Must be positive.`,
+      { counterId, value }
+    );
+  }
+
+  try {
+    // Use Prisma's atomic increment
+    const counter = await db.usageCounter.update({
+      where: { id: counterId },
+      data: {
+        used: {
+          increment: value,
+        },
+      },
+    });
+
+    return counter;
+  } catch (error) {
+    throw new OrgCreationError(
+      `Failed to increment usage counter: ${counterId}`,
+      { originalError: error instanceof Error ? error.message : String(error) }
+    );
+  }
+}
+
+/**
+ * Creates a usage record with metadata for idempotency
+ * 
+ * @param data - Usage record data
+ * @returns Created usage record
+ * @throws OrgCreationError if database operation fails
+ */
+export async function createUsageRecord(data: {
+  organizationId: string;
+  clerkOrgId: string;
+  subscriptionId: string;
+  usageCounterId: string;
+  metric: string;
+  value: number;
+  occurredAt: Date;
+  metadata: { request_id: string };
+}): Promise<UsageRecordRecord> {
+  try {
+    const record = await db.usageRecord.create({
+      data: {
+        organizationId: data.organizationId,
+        clerkOrgId: data.clerkOrgId,
+        subscriptionId: data.subscriptionId,
+        usageCounterId: data.usageCounterId,
+        metric: data.metric,
+        value: data.value,
+        occurredAt: data.occurredAt,
+        metadata: data.metadata,
+      },
+    });
+
+    return record;
+  } catch (error) {
+    throw new OrgCreationError(
+      `Failed to create usage record: ${data.metadata.request_id}`,
+      { originalError: error instanceof Error ? error.message : String(error) }
+    );
+  }
+}
+
+/**
+ * Finds a usage record by request_id in metadata
+ * 
+ * @param requestId - Request ID to search for
+ * @returns Usage record or null if not found
+ */
+export async function findUsageRecordByRequestId(
+  requestId: string
+): Promise<UsageRecordRecord | null> {
+  try {
+    // Query UsageRecord where metadata.request_id equals requestId
+    const records = await db.usageRecord.findMany({
+      where: {
+        metadata: {
+          path: ["request_id"],
+          equals: requestId,
+        },
+      },
+      take: 1,
+    });
+
+    return records.length > 0 ? records[0] : null;
+  } catch (error) {
+    // If JSON path query fails, return null (record doesn't exist)
+    return null;
+  }
+}
+
